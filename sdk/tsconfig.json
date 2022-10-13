@@ -35,5 +35,10 @@
     "**/*.test.ts",
     "src/examples/**/*.ts",
     "examples/**/*.ts"
-  ] 
+  ],
+  "ts-node": {
+    "compilerOptions": {
+      "module": "CommonJS"
+    }
+  }
 }
