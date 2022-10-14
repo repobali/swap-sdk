@@ -611,10 +611,22 @@ export class PoolInfo {
         return (this.x > BigIntConstants.ZERO) && (this.y > BigIntConstants.ZERO);
     }
 
+    ggetSwappingDirectionForCoins = (x: CoinType, y: CoinType) => { 
+        const x_ = this.type.xTokenType;
+        const y_ = this.type.yTokenType;
+        if (isSameCoinType(x, x_) && isSameCoinType(y, y_)) {
+            return "forward" as PoolDirectionType
+        }
+        else if (isSameCoinType(x, y_) && isSameCoinType(y, x_)) {
+            return "reverse" as PoolDirectionType;
+        }
+        return null;
+    }
+
     isCapableSwappingForCoins = (x: CoinType, y: CoinType) => {
         const x_ = this.type.xTokenType;
         const y_ = this.type.yTokenType;
-        return this.isInitialized() && this.isAvaliableForSwap() && (isSameCoinType(x, x_) && isSameCoinType(y, y_)) || (isSameCoinType(x, y_) && isSameCoinType(y, x_));
+        return this.isInitialized() && this.isAvaliableForSwap() && (this.ggetSwappingDirectionForCoins(x, y) !== null);
     }
 
     _computeAmount = (dx: bigint, x: bigint, y: bigint) => {

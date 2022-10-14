@@ -1,5 +1,4 @@
 import { AddressType, PoolInfo, PoolDirectionType, PositionInfo } from "./common";
-import { Client } from "./client";
 
 import { BCS as AptosBCS, TxnBuilderTypes, Types } from 'aptos';
 import { bcs as SuiBCS, SuiJsonValue, MoveCallTransaction as SuiMoveCallTransaction } from '@mysten/sui.js';
@@ -8,7 +7,6 @@ export type TransacationNormalizedArgument = ["address" | "string", string] | ["
 export type TransacationArgument = string | number | bigint | TransacationNormalizedArgument;
 
 export interface TransactionType {
-    type: string;
     function: string;
     type_arguments: string[];
     arguments: TransacationArgument[];
@@ -26,7 +24,7 @@ export interface TransactionOptions {
 }
 
 export interface TransactionOperation_SwapProps {
-    client: Client;
+    operation: "swap";
     pool: PoolInfo;
     direction: PoolDirectionType;
     amount: bigint;
@@ -34,28 +32,36 @@ export interface TransactionOperation_SwapProps {
 };
 
 export interface TransactionOperation_AddLiqudityProps {
-    client: Client;
+    operation: "add-liqudity";
     pool: PoolInfo;
     xAmount: bigint;
     yAmount: bigint;
 };
 
-export interface TransactionOperation_RemoveLiqudityProps {
-    client: Client;
+export interface TransactionOperation_RemoveLiquidityProps {
+    operation: "remove-liqudity";
     positionInfo: PositionInfo
 }
 
 export interface TransactionOperation_MintTestCoinProps {
-    client: Client;
+    operation: "mint-test-coin";
     amount: bigint;
 }
+
+export type TransactionOperation_Any = (
+    TransactionOperation_SwapProps | 
+    TransactionOperation_AddLiqudityProps |
+    TransactionOperation_RemoveLiquidityProps | 
+    TransactionOperation_MintTestCoinProps
+);
 
 export declare namespace TransactionOperation {
     export {
         TransactionOperation_SwapProps as Swap,
         TransactionOperation_AddLiqudityProps as AddLiqudity,
-        TransactionOperation_RemoveLiqudityProps as RemoveLiqudity,
-        TransactionOperation_MintTestCoinProps as MintTestCoin
+        TransactionOperation_RemoveLiquidityProps as RemoveLiquidity,
+        TransactionOperation_MintTestCoinProps as MintTestCoin,
+        TransactionOperation_Any as Any,
     }
 }
 
@@ -98,7 +104,6 @@ export class AptosSerializer {
 
     static normalized(v: TransactionType, ctx: TransactionTypeSerializeContext) {
         const t = {
-            type: v.type,
             function: v.function.replace("@", ctx.packageAddr),
             type_arguments: v.type_arguments.map(t => t.replace("@", ctx.packageAddr)),
             arguments: v.arguments.map(arg => AptosSerializer._normalizArgument(arg, ctx)) 
@@ -250,7 +255,7 @@ export class SuiSerializer {
         throw Error(`[SuiSerializer] Json serialize error on argument: ${v}`)
     }
 
-    static toMoveTransaction = (t: TransactionType, ctx: TransactionTypeSerializeContext) => {
+    static toMoveTransaction = (t: TransactionType, ctx: TransactionTypeSerializeContext, opt?: TransactionOptions,) => {
         const packageAddr = ctx.packageAddr;
     
         const transactionFunctionSplit = t.function.split("::");
@@ -262,7 +267,12 @@ export class SuiSerializer {
         const arguments_ = t.arguments.map(arg => ( SuiSerializer.toJsonArgument(arg, ctx) as SuiJsonValue) );
     
         return {
-            packageObjectId, module: module_, function: function_, typeArguments, arguments: arguments_, gasBudget: 2000
+            packageObjectId, 
+            module: module_, 
+            function: function_, 
+            typeArguments, 
+            arguments: arguments_, 
+            gasBudget: opt?.maxGasAmount ?? 2000
         } as SuiMoveCallTransaction
     }
 }
