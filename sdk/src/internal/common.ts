@@ -607,11 +607,33 @@ export class PoolInfo {
         return (x * this.y) / this.x;
     }
 
+    getDepositAmount = (xMax: bigint, yMax: bigint) => {
+        if (!this.isInitialized() || xMax <= BigIntConstants.ZERO || yMax <= BigIntConstants.ZERO) {
+            return [BigIntConstants.ZERO, BigIntConstants.ZERO] as [bigint, bigint]
+        };
+
+        let x: bigint = BigIntConstants.ZERO;
+        let y: bigint = BigIntConstants.ZERO;
+
+        if (this.getDepositXAmount(yMax) > xMax) {
+          x = xMax;
+          y = this.getDepositYAmount(xMax);
+          y = (y < yMax) ? y : yMax;
+        }
+        else {
+          y = yMax;
+          x = this.getDepositXAmount(yMax);
+          x = (x < xMax) ? x : xMax;
+        }
+
+        return [x, y];
+    }
+
     isInitialized = () => {
         return (this.x > BigIntConstants.ZERO) && (this.y > BigIntConstants.ZERO);
     }
 
-    ggetSwappingDirectionForCoins = (x: CoinType, y: CoinType) => { 
+    getSwapDirection = (x: CoinType, y: CoinType) => { 
         const x_ = this.type.xTokenType;
         const y_ = this.type.yTokenType;
         if (isSameCoinType(x, x_) && isSameCoinType(y, y_)) {
@@ -624,9 +646,7 @@ export class PoolInfo {
     }
 
     isCapableSwappingForCoins = (x: CoinType, y: CoinType) => {
-        const x_ = this.type.xTokenType;
-        const y_ = this.type.yTokenType;
-        return this.isInitialized() && this.isAvaliableForSwap() && (this.ggetSwappingDirectionForCoins(x, y) !== null);
+        return this.isInitialized() && this.isAvaliableForSwap() && (this.getSwapDirection(x, y) !== null);
     }
 
     _computeAmount = (dx: bigint, x: bigint, y: bigint) => {

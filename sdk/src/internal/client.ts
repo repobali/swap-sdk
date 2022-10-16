@@ -1,4 +1,4 @@
-import { AptosClient, FaucetClient as AptosFaucetClient, Types as AptosTypes } from 'aptos';
+import { AptosAccount, AptosClient, FaucetClient as AptosFaucetClient, Types as AptosTypes } from 'aptos';
 import { JsonRpcProvider as SuiJsonRpcProvider, MoveCallTransaction as SuiMoveCallTransaction, SuiMoveObject, SuiObject, GetObjectDataResponse } from '@mysten/sui.js';
 import { MoveTemplateType, PoolInfo, CoinType, PoolType, CoinInfo, AddressType, TxHashType, PositionInfo, CommonTransaction, WeeklyStandardMovingAverage, uniqArrayOn, SwapTransactionData, DepositTransactionData, WithdrawTransactionData, PoolDirectionType, isSameCoinType } from './common';
 import { AptosSerializer, TransactionOperation, TransactionOptions, TransactionType, TransactionTypeSerializeContext } from './transaction';
@@ -479,13 +479,15 @@ export class SuiswapClient extends Client {
 
 export interface AptoswapClientTransactionContext {
     accountAddr: AddressType;
-    gasBudget?: number;
-    gasPrice?: number;
+    gasBudget?: bigint;
+    gasPrice?: bigint;
 }
 
 export class AptoswapClient extends Client {
 
-    static DEFAULT_GAS_BUDGET = 2000;
+    static DEFAULT_GAS_BUDGET = BigInt(2000);
+    static DEFAULT_EXPIRATION_SECS = 90;
+    static DEFAULT_EXECUTE_TIMEOUT_SECS = 30;
     static HOST_DEPLOY_JSON_PATH = "api/deploy.json"
 
     packageAddr: AddressType;
@@ -902,10 +904,9 @@ export class AptoswapClient extends Client {
     generateEntryFuntionPayload = async (opt: TransactionOperation.Any, accountAddr: AddressType, opts: TransactionOptions) => {
         const transcationCtx: AptoswapClientTransactionContext = {
             accountAddr: accountAddr,
-            gasBudget: Number(opts.maxGasAmount ?? AptoswapClient.DEFAULT_GAS_BUDGET),
-            gasPrice: Number(opts.gasUnitPrice) ?? this.minGasPrice
+            gasBudget: opts.maxGasAmount ?? AptoswapClient.DEFAULT_GAS_BUDGET,
+            gasPrice: opts.gasUnitPrice ?? this.minGasPrice
         };
-
         
         const serializeCtx: TransactionTypeSerializeContext = {
             packageAddr: this.getPackageAddress(),
@@ -915,6 +916,31 @@ export class AptoswapClient extends Client {
         const t = await this.generateTransactionType(opt, transcationCtx);
         const payload = AptosSerializer.toEntryFunctionPayload(t, serializeCtx);
         return payload;
+    }
+
+    submit = async (opt: TransactionOperation.Any, account: AptosAccount, opts: TransactionOptions) => { 
+        const accountAddr = account.address().toString();
+        const payload = await this.generateEntryFuntionPayload(opt, accountAddr, opts);
+
+        const rawTransaction = await this.client.generateTransaction(
+            accountAddr, 
+            payload, 
+            {
+                max_gas_amount: (opts.maxGasAmount ?? AptoswapClient.DEFAULT_GAS_BUDGET).toString(),
+                gas_unit_price: (opts.gasUnitPrice ?? this.minGasPrice).toString(),
+                expiration_timestamp_secs: (Math.floor(Date.now() / 1000) + (opts?.expirationSecond ?? AptoswapClient.DEFAULT_EXPIRATION_SECS)).toString()
+            }
+        );
+        
+        const signedTransaction = await this.client.signTransaction(account, rawTransaction);
+        const pendingTransaction = await this.client.submitTransaction(signedTransaction);
+        return pendingTransaction.hash;
+    }
+
+    execute = async (opt: TransactionOperation.Any, account: AptosAccount, opts: TransactionOptions, timeout?: number) => {
+        const txHash = await this.submit(opt, account, opts);
+        const result = await this.client.waitForTransactionWithResult(txHash, { timeoutSecs: timeout ?? AptoswapClient.DEFAULT_EXECUTE_TIMEOUT_SECS, checkSuccess: false });
+        return (result as AptosTypes.UserTransaction);
     }
 
     checkGasFeeAvaliable = async (accountAddr: AddressType, usedAmount: bigint, estimateGasAmount: bigint) => {
@@ -951,7 +977,7 @@ export class AptoswapClient extends Client {
         const isGasEnough = await this.checkGasFeeAvaliable(
             ctx.accountAddr,
             isSameCoinType(sourceCoinType, this.getPrimaryCoinType()) ? amount : BigIntConstants.ZERO,
-            BigInt(gasBudget)
+            gasBudget
         );
         if (!isGasEnough) {
             throw new Error("Not enough gas for swapping");
@@ -988,7 +1014,7 @@ export class AptoswapClient extends Client {
             depositGasCoinAmount = yAmount;
         }
 
-        const isGasEnough = await this.checkGasFeeAvaliable(ctx.accountAddr, depositGasCoinAmount, BigInt(gasBudget));
+        const isGasEnough = await this.checkGasFeeAvaliable(ctx.accountAddr, depositGasCoinAmount, gasBudget);
         if (!isGasEnough) {
             throw new Error("Not enough gas for adding liquidity");
         }
@@ -1013,7 +1039,7 @@ export class AptoswapClient extends Client {
         const packageAddr = this.getPackageAddress();
         const accountAddr = ctx.accountAddr;
 
-        const isGasEnough = await this.checkGasFeeAvaliable(accountAddr, BigIntConstants.ZERO, BigInt(gasBudget));
+        const isGasEnough = await this.checkGasFeeAvaliable(accountAddr, BigIntConstants.ZERO, gasBudget);
         if (!isGasEnough) {
             throw new Error("Not enough gas for minting test coin");
         }
@@ -1032,14 +1058,14 @@ export class AptoswapClient extends Client {
     }
 
     _generateTransactionType_RemoveLiquidity = async (opt: TransactionOperation.RemoveLiquidity, ctx: AptoswapClientTransactionContext) => {
-        const gasBudget = (ctx.gasBudget ?? AptoswapClient.DEFAULT_GAS_BUDGET);
+        const gasBudget = ctx.gasBudget ?? AptoswapClient.DEFAULT_GAS_BUDGET;
 
         const positionInfo = opt.positionInfo;
         const packageAddr = this.getPackageAddress();
         const pool = positionInfo.poolInfo;
         const balance = positionInfo.balance();
 
-        const isGasEnough = await this.checkGasFeeAvaliable(ctx.accountAddr, BigIntConstants.ZERO, BigInt(gasBudget));
+        const isGasEnough = await this.checkGasFeeAvaliable(ctx.accountAddr, BigIntConstants.ZERO, gasBudget);
         if (!isGasEnough) {
             throw new Error("Not enough gas for removing liquidity");
         }

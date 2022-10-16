@@ -164,7 +164,11 @@ export class AptosSerializer {
 
     static toEntryFunctionPayload = (t: TransactionType, ctx: TransactionTypeSerializeContext) => {
         const t_ = AptosSerializer.normalized(t, ctx);
-        return t_ as Types.EntryFunctionPayload;
+        return {
+            function: t_.function,
+            type_arguments: t_.type_arguments,
+            arguments: t_.arguments.map(x => (Array.isArray(x) ? x[1].toString() : x.toString()))
+        } as Types.EntryFunctionPayload;
     }
 
     // static toPayload = (t: TransactionType, ctx: TransactionTypeSerializeContext) => {
