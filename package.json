@@ -1,6 +1,6 @@
 {
   "name": "@vividnetwork/swap-sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "SDK for Aptoswap, Suiswap and other swap platforms",
   "author": "VividNetwork <vivid.network@outlook.com>",
   "repository": "https://github.com/vividnetwork/swap-sdk",
