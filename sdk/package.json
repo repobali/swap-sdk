@@ -1,5 +1,5 @@
 {
-  "name": "swap-sdk",
+  "name": "@vividnetwork/swap-sdk",
   "version": "0.1.0",
   "description": "SDK for Aptoswap, Suiswap and other swap platforms",
   "author": "VividNetwork <vivid.network@outlook.com>",
@@ -10,13 +10,13 @@
     "aptos",
     "sui"
   ],
-  "main": "./dist/tsc/index.js",
-  "types": "./dist/tsc/index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
-    "clean": "rm -rf dist build package",
+    "clean": "rm -rf dist build package .aptos",
     "docs": "typedoc --entryPoints src/index.ts",
-    "build": "tsc -p tsconfig.json",
-    "build-all": "npm run clean && npm run build"
+    "build-without-clean": "tsc -p tsconfig.json",
+    "build": "npm run clean && npm run build-without-clean"
   },
   "devDependencies": {
     "@types/node": "^18.8.5",
