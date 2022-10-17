@@ -2,7 +2,7 @@
 
 `swap-sdk` is the typescript SDK for multiple swap platforms including `Aptoswap` and `Suiswap`.
 
-## Install `swap-sdk`
+## 💿 Getting Started
 
 To install the `swap-sdk`, simply add `@vividnetwork/swap-sdk` into your `package.json`.
 
@@ -16,7 +16,7 @@ Or
 yarn add @vividnetwork/swap-sdk
 ```
 
-## Usage
+## 📙 Usage
 
 You can use the `swap-sdk` to query positions, deposit, withdraw LSP tokens and swap assets with 
 
